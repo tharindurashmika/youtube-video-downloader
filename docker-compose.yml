@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  cinecast:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cinecast-tv
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEFAULT_RESOLUTION=1080p
+      - DEFAULT_CONTAINER=mp4
+      - DEFAULT_TV_PROFILE=universal
+      - MAX_CONCURRENT_DOWNLOADS=2
+    volumes:
+      # Persistent storage for downloaded TV-ready videos
+      - ./downloads:/app/downloads
+      # Persistent SQLite database storage
+      - ./backend_data:/app/backend_data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/system/diagnostics')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    security_opt:
+      - no-new-privileges:true

@@ -66,13 +66,13 @@ def check_ffmpeg_health(force_refresh: bool = False) -> Dict[str, Any]:
     ffmpeg_bin = get_ffmpeg_binary()
     try:
         proc = subprocess.Popen([ffmpeg_bin, "-version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        stdout, _ = proc.communicate(timeout=3)
+        stdout, _ = proc.communicate(timeout=10)
         if proc.returncode == 0:
             first_line = stdout.split("\n")[0] if stdout else "FFmpeg present"
             
             # Check encoder support
             enc_proc = subprocess.Popen([ffmpeg_bin, "-encoders"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            enc_out, _ = enc_proc.communicate(timeout=3)
+            enc_out, _ = enc_proc.communicate(timeout=10)
             has_h264 = "libx264" in enc_out or "h264" in enc_out
             has_hevc = "libx265" in enc_out or "hevc" in enc_out
             has_aac = "aac" in enc_out

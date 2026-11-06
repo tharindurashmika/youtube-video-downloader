@@ -27,7 +27,7 @@ jobs:
       - name: Install FFmpeg (system package)
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y ffmpeg libavcodec-extra
 
       - name: Install Python dependencies
         run: |
@@ -44,5 +44,5 @@ jobs:
 
       - name: Run automated unit & integration tests
         run: |
-          python -m unittest backend/tests/test_units.py
+          python -m unittest discover -s backend/tests -p "test_*.py"
 

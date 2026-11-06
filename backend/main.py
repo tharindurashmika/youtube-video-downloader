@@ -61,8 +61,9 @@ async def websocket_progress_endpoint(websocket: WebSocket):
 
 # Serve built frontend if exists
 dist_dir = Path(__file__).resolve().parent.parent / "frontend" / "dist"
-if dist_dir.exists():
-    app.mount("/assets", StaticFiles(directory=str(dist_dir / "assets")), name="assets")
+assets_dir = dist_dir / "assets"
+if dist_dir.exists() and assets_dir.exists():
+    app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):

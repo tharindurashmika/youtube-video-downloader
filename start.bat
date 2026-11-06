@@ -59,3 +59,4 @@ echo    - To cleanly stop the server, run: stop.bat
 echo ======================================================================
 echo.
 pause
+

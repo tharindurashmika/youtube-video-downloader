@@ -29,3 +29,4 @@ services:
       start_period: 15s
     security_opt:
       - no-new-privileges:true
+

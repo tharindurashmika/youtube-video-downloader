@@ -66,3 +66,4 @@ echo.
 echo Run start.bat to start the updated application.
 echo.
 pause
+

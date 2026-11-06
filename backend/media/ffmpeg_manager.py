@@ -56,6 +56,55 @@ def get_ffmpeg_binary() -> str:
 _CACHED_HEALTH = None
 _CACHED_HEALTH_TIME = 0.0
 
+# H.264 encoders in order of preference. Software libx264 gives the best quality;
+# hardware encoders are used when the FFmpeg build has no libx264 (e.g. some Windows builds).
+_H264_CANDIDATES = ["libx264", "h264_nvenc", "h264_qsv", "h264_amf", "h264_mf"]
+_ENCODER_CACHE: Dict[str, Optional[str]] = {}
+
+
+def _encoder_works(ffmpeg_bin: str, encoder: str) -> bool:
+    """Actually test-encodes a tiny clip, since an encoder can be listed but unusable (no GPU)."""
+    try:
+        proc = subprocess.run(
+            [ffmpeg_bin, "-hide_banner", "-loglevel", "error", "-f", "lavfi",
+             "-i", "color=c=black:s=256x256:d=0.2", "-c:v", encoder, "-pix_fmt", "yuv420p",
+             "-f", "null", "-"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20
+        )
+        return proc.returncode == 0
+    except Exception:
+        return False
+
+
+def detect_h264_encoder(ffmpeg_bin: Optional[str] = None) -> Optional[str]:
+    """Returns the first working H.264 encoder name, or None if the FFmpeg build cannot encode H.264."""
+    ffmpeg_bin = ffmpeg_bin or get_ffmpeg_binary()
+    if ffmpeg_bin in _ENCODER_CACHE:
+        return _ENCODER_CACHE[ffmpeg_bin]
+    found = None
+    for enc in _H264_CANDIDATES:
+        if _encoder_works(ffmpeg_bin, enc):
+            found = enc
+            break
+    _ENCODER_CACHE[ffmpeg_bin] = found
+    return found
+
+
+def h264_encode_args(crf: int = 20, preset: str = "fast") -> list:
+    """Builds the video encoder arguments for the best available H.264 encoder."""
+    enc = detect_h264_encoder()
+    if enc is None:
+        raise RuntimeError(
+            "This FFmpeg build has no usable H.264 encoder (libx264 or GPU encoder). "
+            "Install a full FFmpeg build: 'winget install Gyan.FFmpeg', then set its path in Settings."
+        )
+    if enc == "libx264":
+        return ["-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", preset, "-crf", str(crf)]
+    if enc == "h264_qsv":
+        return ["-c:v", enc, "-pix_fmt", "nv12", "-global_quality", str(crf + 3)]
+    return ["-c:v", enc, "-pix_fmt", "yuv420p", "-b:v", "8M"]
+
+
 def check_ffmpeg_health(force_refresh: bool = False) -> Dict[str, Any]:
     global _CACHED_HEALTH, _CACHED_HEALTH_TIME
     import time
@@ -73,7 +122,8 @@ def check_ffmpeg_health(force_refresh: bool = False) -> Dict[str, Any]:
             # Check encoder support
             enc_proc = subprocess.Popen([ffmpeg_bin, "-encoders"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             enc_out, _ = enc_proc.communicate(timeout=10)
-            has_h264 = "libx264" in enc_out or "h264" in enc_out
+            h264_encoder = detect_h264_encoder(ffmpeg_bin)
+            has_h264 = h264_encoder is not None
             has_hevc = "libx265" in enc_out or "hevc" in enc_out
             has_aac = "aac" in enc_out
             has_nvenc = "nvenc" in enc_out
@@ -88,7 +138,11 @@ def check_ffmpeg_health(force_refresh: bool = False) -> Dict[str, Any]:
                     "aac": has_aac,
                     "nvenc": has_nvenc
                 },
-                "status_text": "FFmpeg is active and ready for TV media preparation."
+                "status_text": (
+                    f"FFmpeg is ready (H.264 encoder: {h264_encoder})."
+                    if has_h264 else
+                    "FFmpeg found, but it has NO usable H.264 encoder. Install a full build: winget install Gyan.FFmpeg"
+                )
             }
             _CACHED_HEALTH = result
             _CACHED_HEALTH_TIME = now
@@ -267,7 +321,7 @@ def convert_media_file(
             cmd.extend(["-c:v", "copy"])
         else:
             # Need h264 re-encode
-            cmd.extend(["-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "fast", "-crf", "20"])
+            cmd.extend(h264_encode_args(crf=20, preset="fast"))
 
         # Audio treatment
         if is_aac:
@@ -283,7 +337,7 @@ def convert_media_file(
         if (is_h264 or is_hevc) and is_yuv420p:
             cmd.extend(["-c:v", "copy"])
         else:
-            cmd.extend(["-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "medium", "-crf", "18"])
+            cmd.extend(h264_encode_args(crf=18, preset="medium"))
 
         if is_aac or "ac3" in acodec:
             cmd.extend(["-c:a", "copy"])
@@ -307,7 +361,7 @@ def convert_media_file(
         elif v_opt == "hevc":
             cmd.extend(["-c:v", "libx265", "-crf", str(crf_opt), "-pix_fmt", "yuv420p"])
         else:
-            cmd.extend(["-c:v", "libx264", "-crf", str(crf_opt), "-pix_fmt", "yuv420p"])
+            cmd.extend(h264_encode_args(crf=int(crf_opt)))
 
         if a_opt == "copy":
             cmd.extend(["-c:a", "copy"])
@@ -327,15 +381,19 @@ def convert_media_file(
 
     proc = subprocess.Popen(
         cmd,
-        stdout=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
         stderr=subprocess.PIPE,
         text=True,
-        universal_newlines=True
+        encoding="utf-8",
+        errors="replace",
     )
 
     # Track progress by reading stderr time=00:00:15.30
     time_regex = re.compile(r"time=(\d+):(\d+):(\d+\.?\d*)")
+    stderr_tail = []
     for line in proc.stderr:
+        stderr_tail.append(line.rstrip())
+        stderr_tail = stderr_tail[-12:]
         m = time_regex.search(line)
         if m and duration > 0 and progress_callback:
             h, m_mins, s = m.groups()
@@ -345,7 +403,10 @@ def convert_media_file(
 
     proc.wait()
     if proc.returncode != 0:
-        raise RuntimeError(f"FFmpeg conversion failed with return code {proc.returncode}")
+        logger.error("FFmpeg failed: %s", "\n".join(stderr_tail))
+        raise RuntimeError(
+            f"FFmpeg conversion failed (code {proc.returncode}): " + " | ".join(stderr_tail[-3:])
+        )
 
     if progress_callback:
         progress_callback(100.0, "Conversion complete.")
@@ -385,7 +446,7 @@ def merge_separate_streams(
         if is_h264 and is_yuv420p:
             cmd.extend(["-c:v", "copy"])
         else:
-            cmd.extend(["-c:v", "libx264", "-pix_fmt", "yuv420p", "-preset", "fast", "-crf", "20"])
+            cmd.extend(h264_encode_args(crf=20, preset="fast"))
 
         # Audio: copy if aac, else transcode
         if is_aac:
@@ -405,7 +466,7 @@ def merge_separate_streams(
         if is_h264:
             cmd.extend(["-c:v", "copy"])
         else:
-            cmd.extend(["-c:v", "libx264", "-pix_fmt", "yuv420p"])
+            cmd.extend(h264_encode_args())
 
         if is_aac:
             cmd.extend(["-c:a", "copy"])

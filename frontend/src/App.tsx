@@ -99,6 +99,18 @@ export function App() {
     };
   }, []);
 
+  // Fallback sync: if a WebSocket event is missed, poll while tasks are active
+  useEffect(() => {
+    const hasActive = downloads.some((d) =>
+      ['downloading', 'queued', 'converting', 'merging'].includes(d.status)
+    );
+    if (!hasActive) return;
+    const timer = setInterval(() => {
+      api.getDownloads().then(setDownloads).catch(() => {});
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [downloads]);
+
   // Handlers
   const handleAnalyze = async (url: string) => {
     setIsAnalyzing(true);

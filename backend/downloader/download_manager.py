@@ -204,6 +204,9 @@ class DownloadManager:
     async def _execute_download(self, task: DownloadTask):
         download_id = task.download_id
         req = task.request_data
+        # Capture the main loop here: progress hooks run in worker threads,
+        # where asyncio.get_event_loop() raises "no current event loop".
+        main_loop = asyncio.get_running_loop()
         url = req["url"]
         
         # Check if already cancelled
@@ -259,7 +262,7 @@ class DownloadManager:
                             "total_bytes": total_bytes,
                             "status": "downloading"
                         }),
-                        asyncio.get_event_loop()
+                        main_loop
                     )
 
         # Build yt-dlp format selector
@@ -302,7 +305,7 @@ class DownloadManager:
 
         try:
             # Run yt-dlp download in thread pool to not block asyncio
-            loop = asyncio.get_event_loop()
+            loop = main_loop
             
             def run_ytdl():
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -357,7 +360,7 @@ class DownloadManager:
                             "status": "converting",
                             "message": msg
                         }),
-                        asyncio.get_event_loop()
+                        main_loop
                     )
 
                 custom_opts = {

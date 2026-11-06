@@ -75,3 +75,16 @@ A yellow badge showing "FFmpeg Missing" appears in the navigation bar or diagnos
 
 ### Solution:
 - Always select **Universal TV Compatibility** mode before downloading. CineCast TV automatically detects Opus audio and transcodes only the audio track into standard AAC-LC (`192kbps`) while copying the video stream losslessly.
+
+---
+
+## 6. Error: 'The page needs to be reloaded' / 'Failed to access media stream'
+
+Cause: yt-dlp is outdated (YouTube changes often).
+
+Fix:
+```powershell
+python -m pip install -U yt-dlp
+```
+Then restart the app (stop.bat, start.bat).
+

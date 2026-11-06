@@ -36,6 +36,11 @@ def extract_video_info(url: str) -> Dict[str, Any]:
             raise ValueError("This video is private and inaccessible.")
         elif "Video unavailable" in msg:
             raise ValueError("This video is unavailable or has been removed.")
+        elif "page needs to be reloaded" in msg or "Unable to extract" in msg or "nsig" in msg:
+            raise ValueError(
+                "yt-dlp is outdated and can no longer read YouTube. "
+                "Update it with: python -m pip install -U yt-dlp  (then restart the app)."
+            )
         elif "Sign in to confirm your age" in msg:
             raise ValueError("This video requires age confirmation or authentication.")
         else:

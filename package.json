@@ -1,0 +1,13 @@
+{
+  "name": "personal-video-downloader-tv-manager",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Personal Video Downloader & TV Media Manager with FFmpeg TV compatibility encoding",
+  "scripts": {
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
+    "backend:start": "python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload",
+    "test": "python -m unittest backend/tests/test_units.py"
+  }
+}
+

@@ -1,0 +1,118 @@
+# ======================================================================
+# Git Ignore Rules for CineCast TV (Personal Video Downloader)
+# ======================================================================
+
+# Environment & Credentials
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*.token
+credentials.json
+
+# Process IDs
+*.pid
+.server.pid
+server.pid
+
+# SQLite Databases & Personal History
+*.db
+*.sqlite
+*.sqlite3
+backend/media_manager.db
+media_manager.db
+
+# Media Storage & Temporary Downloads
+downloads/*
+!downloads/.gitkeep
+temp_downloads/*
+!temp_downloads/.gitkeep
+
+# Video, Audio, and Stream Cache Files
+*.mp4
+*.mkv
+*.webm
+*.avi
+*.mov
+*.flv
+*.m2ts
+*.m4a
+*.mp3
+*.aac
+*.opus
+*.flac
+*.wav
+*.part
+*.ytdl
+*.aria2
+
+# Ensure TypeScript source files are never ignored
+!*.ts
+!*.tsx
+
+# Python Virtual Environments & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.env/
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Node.js & Frontend
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+.vite/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Operating System Files
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# IDE & Editor Configs
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*~
